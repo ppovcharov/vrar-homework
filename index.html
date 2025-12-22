@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>VR Homework 3 - Device Orientation (Anaglyph Original)</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 
@@ -34,8 +33,7 @@
 <script type="module">
     import * as THREE from "three";
     import * as VAX from "vax";
-    // САМО ТОВА Е ДОБАВЕНО:
-    import { AnaglyphEffect } from "three/addons/effects/AnaglyphEffect.js";
+    import { StereoEffect } from "three/addons/effects/StereoEffect.js";
 
     let effect = null;
     let isStereoRendering = false;
@@ -43,29 +41,24 @@
 
     VAX.init(animate);
 
-    // 1. Сцена (ОРИГИНАЛНА)
     VAX.scene.background = new THREE.Color(0x101010);
     const ambient = new THREE.AmbientLight(0xffffff, 0.8);
     VAX.scene.add(ambient);
     const pointLight = new THREE.PointLight(0xffffff, 1.5);
     VAX.scene.add(pointLight);
 
-    // 2. Камера (ОРИГИНАЛНА ПОЗИЦИЯ - В ЦЕНТЪРА)
     VAX.camera.position.set(0, 0, 0);
 
-    // 3. Ориентация (ОРИГИНАЛНА ЛОГИКА)
-    let deviceAlpha = 0, deviceBeta = 0, deviceGamma = 0;
-    let startAlpha = null, startBeta = null, startGamma = null;
+    let deviceAlpha = 0, deviceGamma = 0;
+    let startAlpha = null, startGamma = null;
 
     function handleOrientation(event) {
         if (event.alpha === null) return;
         if (startAlpha === null) {
             startAlpha = event.alpha;
-            startBeta = event.beta;
             startGamma = event.gamma;
         }
         deviceAlpha = event.alpha - startAlpha;
-        deviceBeta  = event.beta  - startBeta;
         deviceGamma = event.gamma - startGamma;
     }
 
@@ -84,7 +77,6 @@
         }
     });
 
-    // 4. Куб/Стая (ОРИГИНАЛНО)
     const size = 60;
     const roomGeo = new THREE.BoxGeometry(size, size, size);
     const roomMat = new THREE.MeshLambertMaterial({
@@ -94,7 +86,6 @@
     const room = new THREE.Mesh(roomGeo, roomMat);
     VAX.scene.add(room);
 
-    // 5. Конуси (ОРИГИНАЛНО - НЯМА ДОПЪЛНИТЕЛНИ КУБОВЕ)
     const coneGeo = new THREE.ConeGeometry(0.8, 3, 16);
     const wallPos = size / 2 - 0.5;
 
@@ -120,19 +111,16 @@
     addWallCones('y', 1); addWallCones('y', -1);
     addWallCones('z', 1); addWallCones('z', -1);
 
-
-    // ТОВА Е ВАЖНО ЗА ДА РАБОТИ СТЕРЕОТО С БИБЛИОТЕКАТА VAX
     const originalRender = VAX.renderer.render.bind(VAX.renderer);
     VAX.renderer.render = function(scene, camera) {
         if (isStereoRendering) originalRender(scene, camera);
     };
 
-    // 6. Анимация
     function animate(t, dT) {
-        // Инициализираме ефекта (само веднъж)
         if (!effect && VAX.renderer) {
-            effect = new AnaglyphEffect(VAX.renderer);
+            effect = new StereoEffect(VAX.renderer);
             effect.setSize(window.innerWidth, window.innerHeight);
+            effect.eyeSeparation = 1;
         }
 
         VAX.camera.rotation.order = 'YXZ';
@@ -142,7 +130,6 @@
         VAX.camera.rotation.y = rotY;
         VAX.camera.rotation.x = rotX;
 
-        // Рисуваме със стерео ефекта
         if (effect) {
             VAX.renderer.getSize(currentSize);
             effect.setSize(currentSize.x, currentSize.y);
