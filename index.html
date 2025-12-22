@@ -1,33 +1,32 @@
 <!DOCTYPE html>
-<html lang="bg">
+<html>
 <head>
-	<title>E0907: Търкаляща се топка</title>
-	<meta charset="utf-8">
+    <title>VR Homework 3 - Device Orientation</title>
+    <meta charset="utf-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 
-	<meta name="viewport"
-	      content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+            "vax": "https://boytchev.github.io/CourseVAX/lib/vax.js"
+        }
+    }
+    </script>
 
-	<script type="importmap">
-	{
-		"imports": {
-			"three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-			"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-			"vax": "https://boytchev.github.io/CourseVAX/lib/vax.js"
-		}
-	}
-	</script>
-
-	<style>
-		body { margin: 0; overflow: hidden; }
-		#enableMotion {
-			position: absolute;
-			top: 20px;
-			left: 20px;
-			z-index: 10;
-			font-size: 18px;
-			padding: 10px 16px;
-		}
-	</style>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #enableMotion {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            font-size: 18px;
+            padding: 10px 16px;
+        }
+    </style>
 </head>
 
 <body>
@@ -35,70 +34,106 @@
 <button id="enableMotion">Enable motion</button>
 
 <script type="module">
+    import * as THREE from "three";
+    import * as VAX from "vax";
 
-	import * as THREE from "three";
-	import * as VAX from "vax";
+    VAX.init(animate);
 
-	// ---------- сцена ----------
-	VAX.init(animate);
+    // 1. Сцена
+    VAX.scene.background = new THREE.Color(0x101010);
 
-	VAX.scene.background = new THREE.Color('white');
-	VAX.light.position.set(100, 200, -50);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+    VAX.scene.add(ambient);
 
-	VAX.camera.position.set(0, 120, 0);
-	VAX.camera.lookAt(new THREE.Vector3(0, 0, 0));
+    const pointLight = new THREE.PointLight(0xffffff, 1.5);
+    VAX.scene.add(pointLight);
 
-	// ---------- жълто поле ----------
-	let geometry = new THREE.BoxGeometry(50, 1, 100);
-	let material = new THREE.MeshPhongMaterial({ color: 'yellow' });
-	let board = new THREE.Mesh(geometry, material);
-	VAX.scene.add(board);
+    // 2. Камера
+    VAX.camera.position.set(0, 0, 0);
 
-	// ---------- топка ----------
-	geometry = new THREE.SphereGeometry(5, 32);
-	material = new THREE.MeshPhongMaterial({ color: 'crimson' });
-	let ball = new THREE.Mesh(geometry, material);
-	VAX.scene.add(ball);
+    // Ориентация
+    let deviceAlpha = 0, deviceBeta = 0;
+    let startAlpha = null, startBeta = null;
 
-	// ---------- наклон ----------
-	let slopeX = 0;
-	let slopeY = 0;
+    function handleOrientation(event) {
+        if (event.alpha === null || event.beta === null) return;
 
-	function deviceOrientation(event) {
-		slopeX = event.beta  || 0;
-		slopeY = event.gamma || 0;
-	}
+        if (startAlpha === null) {
+            startAlpha = event.alpha;
+            startBeta = event.beta;
+        }
 
-	// ---------- iOS permission ----------
-	document.getElementById("enableMotion").addEventListener("click", async () => {
+        deviceAlpha = event.alpha - startAlpha;
+        deviceBeta  = event.beta  - startBeta;
+    }
 
-		if (typeof DeviceOrientationEvent !== "undefined" &&
-		    typeof DeviceOrientationEvent.requestPermission === "function") {
+    // ====== PERMISSION BUTTON (iOS) ======
+    document.getElementById("enableMotion").addEventListener("click", async () => {
 
-			const response = await DeviceOrientationEvent.requestPermission();
+        if (typeof DeviceOrientationEvent !== "undefined" &&
+            typeof DeviceOrientationEvent.requestPermission === "function") {
 
-			if (response === "granted") {
-				window.addEventListener("deviceorientation", deviceOrientation, true);
-				document.getElementById("enableMotion").style.display = "none";
-			}
+            const response = await DeviceOrientationEvent.requestPermission();
 
-		} else {
-			// Android / non-iOS
-			window.addEventListener("deviceorientation", deviceOrientation, true);
-			document.getElementById("enableMotion").style.display = "none";
-		}
-	});
+            if (response === "granted") {
+                window.addEventListener("deviceorientation", handleOrientation, true);
+                document.getElementById("enableMotion").style.display = "none";
+            }
 
-	// ---------- анимация ----------
-	function animate(t, dT) {
-		ball.position.x = THREE.MathUtils.clamp(
-			ball.position.x + 3 * slopeY * dT, -20, 20
-		);
-		ball.position.z = THREE.MathUtils.clamp(
-			ball.position.z + 3 * slopeX * dT, -45, 45
-		);
-	}
+        } else {
+            // Android / non-iOS
+            window.addEventListener("deviceorientation", handleOrientation, true);
+            document.getElementById("enableMotion").style.display = "none";
+        }
+    });
 
+    // 3. Куб (стая)
+    const size = 60;
+    const roomGeo = new THREE.BoxGeometry(size, size, size);
+    const roomMat = new THREE.MeshLambertMaterial({
+        color: 0x00ff00,
+        side: THREE.BackSide
+    });
+    const room = new THREE.Mesh(roomGeo, roomMat);
+    VAX.scene.add(room);
+
+    // 4. Конуси
+    const coneGeo = new THREE.ConeGeometry(0.8, 3, 16);
+    const wallPos = size / 2 - 0.5;
+
+    function addWallCones(axis, sign) {
+        for (let i = 0; i < 40; i++) {
+            const mat = new THREE.MeshPhongMaterial({
+                color: new THREE.Color().setHSL(Math.random(), 0.8, 0.5)
+            });
+            const cone = new THREE.Mesh(coneGeo, mat);
+
+            const a = (Math.random() - 0.5) * (size - 10);
+            const b = (Math.random() - 0.5) * (size - 10);
+
+            if (axis === 'x') cone.position.set(sign * wallPos, a, b);
+            if (axis === 'y') cone.position.set(a, sign * wallPos, b);
+            if (axis === 'z') cone.position.set(a, b, sign * wallPos);
+
+            VAX.scene.add(cone);
+        }
+    }
+
+    addWallCones('x', 1); addWallCones('x', -1);
+    addWallCones('y', 1); addWallCones('y', -1);
+    addWallCones('z', 1); addWallCones('z', -1);
+
+    // 5. Анимация
+    function animate(t, dT) {
+        VAX.camera.rotation.order = 'YXZ';
+
+        const rotY = THREE.MathUtils.degToRad(deviceAlpha);
+        const rotX = THREE.MathUtils.degToRad(deviceBeta);
+
+        VAX.camera.rotation.y = rotY;
+        VAX.camera.rotation.x = rotX;
+    }
 </script>
+
 </body>
 </html>
