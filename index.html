@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 
 <html>
 	<head>
@@ -29,7 +29,7 @@
 			VAX.scene.background = new THREE.Color('white');
 
 			VAX.light.position.set(100, 200, -50);
-
+			
 			VAX.camera.position.set(0, 120, 0);
 			VAX.camera.lookAt(new THREE.Vector3(0, 0, 0));
 
@@ -45,10 +45,25 @@
 			
 			var ball = new THREE.Mesh(geometry, material);
 			VAX.scene.add(ball);
-						
-			function animate( )
+
+			// наклон
+			var slopeX = 0,
+				slopeY = 0;
+
+			// слушаме за събитието на ориентацията на устройство
+			window.addEventListener("deviceorientation", deviceOrientation, true);
+
+			// функция, която търкаля топката според наклона на устройството
+			function deviceOrientation(event)
 			{
-				
+				slopeX = event.beta;
+				slopeY = event.gamma;
+			}
+
+			function animate(t, dT)
+			{
+				ball.position.x = THREE.MathUtils.clamp(ball.position.x+3*slopeY*dT, -20, 20);
+				ball.position.z = THREE.MathUtils.clamp(ball.position.z+3*slopeX*dT, -45, 45);
 			}
 			
 		</script>
