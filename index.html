@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>VR Homework 3 - Device Orientation</title>
+    <title>VR Homework 3 - Device Orientation (Landscape)</title>
     <meta charset="utf-8">
     <meta name="viewport"
           content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
@@ -25,6 +25,10 @@
             z-index: 10;
             font-size: 18px;
             padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -52,19 +56,25 @@
     VAX.camera.position.set(0, 0, 0);
 
     // Ориентация
-    let deviceAlpha = 0, deviceBeta = 0;
-    let startAlpha = null, startBeta = null;
+    // Добавяме и Gamma, която отговаря за "нагоре/надолу" в хоризонтален режим
+    let deviceAlpha = 0, deviceBeta = 0, deviceGamma = 0;
+    let startAlpha = null, startBeta = null, startGamma = null;
 
     function handleOrientation(event) {
-        if (event.alpha === null || event.beta === null) return;
+        // Проверка за валидни данни
+        if (event.alpha === null || event.beta === null || event.gamma === null) return;
 
+        // Запаметяване на началната позиция при първото четене
         if (startAlpha === null) {
             startAlpha = event.alpha;
             startBeta = event.beta;
+            startGamma = event.gamma;
         }
 
+        // Изчисляване на разликата спрямо началната позиция
         deviceAlpha = event.alpha - startAlpha;
         deviceBeta  = event.beta  - startBeta;
+        deviceGamma = event.gamma - startGamma;
     }
 
     // ====== PERMISSION BUTTON (iOS) ======
@@ -73,15 +83,21 @@
         if (typeof DeviceOrientationEvent !== "undefined" &&
             typeof DeviceOrientationEvent.requestPermission === "function") {
 
-            const response = await DeviceOrientationEvent.requestPermission();
-
-            if (response === "granted") {
-                window.addEventListener("deviceorientation", handleOrientation, true);
-                document.getElementById("enableMotion").style.display = "none";
+            // iOS 13+ изисква изрично разрешение
+            try {
+                const response = await DeviceOrientationEvent.requestPermission();
+                if (response === "granted") {
+                    window.addEventListener("deviceorientation", handleOrientation, true);
+                    document.getElementById("enableMotion").style.display = "none";
+                } else {
+                    alert("Разрешението беше отказано.");
+                }
+            } catch (error) {
+                console.error(error);
             }
 
         } else {
-            // Android / non-iOS
+            // Android / non-iOS устройства
             window.addEventListener("deviceorientation", handleOrientation, true);
             document.getElementById("enableMotion").style.display = "none";
         }
@@ -125,10 +141,18 @@
 
     // 5. Анимация
     function animate(t, dT) {
+        // Редът на въртене е важен, за да не се "объркват" осите (Gimbal Lock)
         VAX.camera.rotation.order = 'YXZ';
 
+        // Alpha винаги е завъртането около собствената ос (компас), 
+        // независимо дали телефона е легнал или прав.
         const rotY = THREE.MathUtils.degToRad(deviceAlpha);
-        const rotX = THREE.MathUtils.degToRad(deviceBeta);
+
+        // В Landscape режим (горния край вляво), накланянето на екрана към вас и назад
+        // се отчита от GAMMA, а не от Beta.
+        // Слагаме минус (-), защото обикновено посоката е обърната в Landscape.
+        // Ако нагоре ви се струва надолу, махнете минуса.
+        const rotX = THREE.MathUtils.degToRad(-deviceGamma); 
 
         VAX.camera.rotation.y = rotY;
         VAX.camera.rotation.x = rotX;
