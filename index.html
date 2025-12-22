@@ -1,73 +1,104 @@
 <!DOCTYPE html>
+<html lang="bg">
+<head>
+	<title>E0907: Търкаляща се топка</title>
+	<meta charset="utf-8">
 
-<html>
-	<head>
-		<title>E0907: Търкаляща се топка</title>
-		<meta charset="utf-8">
-		
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		
-		<script type="importmap">
-		  {
-			"imports": {
-			  "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-			  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-			  "vax": "https://boytchev.github.io/CourseVAX/lib/vax.js"
+	<meta name="viewport"
+	      content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+	<script type="importmap">
+	{
+		"imports": {
+			"three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+			"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+			"vax": "https://boytchev.github.io/CourseVAX/lib/vax.js"
+		}
+	}
+	</script>
+
+	<style>
+		body { margin: 0; overflow: hidden; }
+		#enableMotion {
+			position: absolute;
+			top: 20px;
+			left: 20px;
+			z-index: 10;
+			font-size: 18px;
+			padding: 10px 16px;
+		}
+	</style>
+</head>
+
+<body>
+
+<button id="enableMotion">Enable motion</button>
+
+<script type="module">
+
+	import * as THREE from "three";
+	import * as VAX from "vax";
+
+	// ---------- сцена ----------
+	VAX.init(animate);
+
+	VAX.scene.background = new THREE.Color('white');
+	VAX.light.position.set(100, 200, -50);
+
+	VAX.camera.position.set(0, 120, 0);
+	VAX.camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+	// ---------- жълто поле ----------
+	let geometry = new THREE.BoxGeometry(50, 1, 100);
+	let material = new THREE.MeshPhongMaterial({ color: 'yellow' });
+	let board = new THREE.Mesh(geometry, material);
+	VAX.scene.add(board);
+
+	// ---------- топка ----------
+	geometry = new THREE.SphereGeometry(5, 32);
+	material = new THREE.MeshPhongMaterial({ color: 'crimson' });
+	let ball = new THREE.Mesh(geometry, material);
+	VAX.scene.add(ball);
+
+	// ---------- наклон ----------
+	let slopeX = 0;
+	let slopeY = 0;
+
+	function deviceOrientation(event) {
+		slopeX = event.beta  || 0;
+		slopeY = event.gamma || 0;
+	}
+
+	// ---------- iOS permission ----------
+	document.getElementById("enableMotion").addEventListener("click", async () => {
+
+		if (typeof DeviceOrientationEvent !== "undefined" &&
+		    typeof DeviceOrientationEvent.requestPermission === "function") {
+
+			const response = await DeviceOrientationEvent.requestPermission();
+
+			if (response === "granted") {
+				window.addEventListener("deviceorientation", deviceOrientation, true);
+				document.getElementById("enableMotion").style.display = "none";
 			}
-		  }
-		</script>
-	</head>
-	
-	<body>
-		<script type="module">
-		
-			import * as THREE from "three";
-			import * as VAX from "vax";
 
-			VAX.init(animate);
-
-			VAX.scene.background = new THREE.Color('white');
-
-			VAX.light.position.set(100, 200, -50);
-			
-			VAX.camera.position.set(0, 120, 0);
-			VAX.camera.lookAt(new THREE.Vector3(0, 0, 0));
-
-			// жълто поле
-			var geometry = new THREE.BoxGeometry(50, 1, 100),
-				material = new THREE.MeshPhongMaterial({color: 'yellow'}),
-				board = new THREE.Mesh(geometry, material);
-			VAX.scene.add(board);
-
-			// топка
-			geometry = new THREE.SphereGeometry(5, 32);
-			material = new THREE.MeshPhongMaterial({color: 'crimson'});
-			
-			var ball = new THREE.Mesh(geometry, material);
-			VAX.scene.add(ball);
-
-			// наклон
-			var slopeX = 0,
-				slopeY = 0;
-
-			// слушаме за събитието на ориентацията на устройство
+		} else {
+			// Android / non-iOS
 			window.addEventListener("deviceorientation", deviceOrientation, true);
+			document.getElementById("enableMotion").style.display = "none";
+		}
+	});
 
-			// функция, която търкаля топката според наклона на устройството
-			function deviceOrientation(event)
-			{
-				slopeX = event.beta;
-				slopeY = event.gamma;
-			}
+	// ---------- анимация ----------
+	function animate(t, dT) {
+		ball.position.x = THREE.MathUtils.clamp(
+			ball.position.x + 3 * slopeY * dT, -20, 20
+		);
+		ball.position.z = THREE.MathUtils.clamp(
+			ball.position.z + 3 * slopeX * dT, -45, 45
+		);
+	}
 
-			function animate(t, dT)
-			{
-				ball.position.x = THREE.MathUtils.clamp(ball.position.x+3*slopeY*dT, -20, 20);
-				ball.position.z = THREE.MathUtils.clamp(ball.position.z+3*slopeX*dT, -45, 45);
-			}
-			
-		</script>
-	</body>
+</script>
+</body>
 </html>
-
-
