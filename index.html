@@ -1,161 +1,159 @@
 <!DOCTYPE html>
 <html>
-	<head>
-		<title>E1113: Кристален свят (Mobile AR)</title>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		
-		<style>
-			/* Стилизиране на бутона за старт */
-			#startBtn {
-				position: absolute;
-				top: 50%;
-				left: 50%;
-				transform: translate(-50%, -50%);
-				padding: 20px 40px;
-				font-size: 24px;
-				font-weight: bold;
-				color: white;
-				background: rgba(0, 0, 0, 0.7);
-				border: 2px solid white;
-				border-radius: 10px;
-				cursor: pointer;
-				z-index: 9999; /* Най-отгоре */
-			}
-			#startBtn:active {
-				background: white;
-				color: black;
-			}
-		</style>
+<head>
+    <title>E1113: Кристален свят (Manual Orientation)</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 
-		<script type="importmap">
-		  {
-			"imports": {
-			  "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-			  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-			  "vax": "https://boytchev.github.io/CourseVAX/lib/vax.js"
-			}
-		  }
-		</script>
-	</head>
-	
-	<body>
-		<button id="startBtn">СТАРТ AR</button>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+            "vax": "https://boytchev.github.io/CourseVAX/lib/vax.js"
+        }
+    }
+    </script>
 
-		<script type="module">
-			import * as THREE from "three";
-			// Импортираме контролите за телефон
-			import { DeviceOrientationControls } from "three/addons/controls/DeviceOrientationControls.js";
-			import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-			import * as VAX from "vax";
+    <style>
+        body { margin: 0; overflow: hidden; }
 
-			VAX.init(animate);
+        /* Стиловете 1:1 от твоя файл */
+        #enableMotion {
+            position: absolute;
+            top: 20px; left: 20px; z-index: 10;
+            font-size: 18px; padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #ccc; border-radius: 8px; cursor: pointer;
+        }
+    </style>
+</head>
 
-			// Настройки на камерата
-			VAX.camera.fov = 60; 
-			VAX.camera.near = 0.1;
-			VAX.camera.far = 1000; 
-			VAX.camera.position.set(0, 0, 0.1);
-			VAX.camera.updateProjectionMatrix();
+<body>
 
-			// Променлива за контролите (ще я сменяме динамично)
-			var controls;
+<button id="enableMotion">Enable motion</button>
 
-			// Първоначално пускаме OrbitControls (за тест на PC)
-			controls = new OrbitControls(VAX.camera, VAX.renderer.domElement);
-			controls.enableZoom = false;
-			controls.enablePan = false;
-			controls.enableDamping = true;
-			controls.dampingFactor = 0.1;
+<script type="module">
+    import * as THREE from "three";
+    import * as VAX from "vax";
+    // Тук НЕ ни трябват OrbitControls или DeviceOrientationControls, 
+    // защото ще ползваме твоята ръчна логика.
 
-			// --- ЛОГИКА ЗА БУТОНА И ТЕЛЕФОНА ---
-			var btn = document.getElementById('startBtn');
-			
-			btn.addEventListener('click', function() {
-				// Проверка дали е iOS 13+ (iPhone)
-				if ( typeof( DeviceOrientationEvent ) !== 'undefined' && typeof( DeviceOrientationEvent.requestPermission ) === 'function' ) {
-					
-					// Изискване на разрешение от Apple
-					DeviceOrientationEvent.requestPermission()
-						.then( response => {
-							if ( response == 'granted' ) {
-								enablePhoneControls();
-							} else {
-								alert("Трябва да разрешите достъпа до сензорите!");
-							}
-						})
-						.catch( console.error );
-				} else {
-					// За Android и други устройства, които не искат разрешение
-					enablePhoneControls();
-				}
-			});
+    VAX.init(animate);
 
-			function enablePhoneControls() {
-				// Скриваме бутона
-				btn.style.display = 'none';
-				
-				// Унищожаваме старите контроли (мишката)
-				controls.dispose();
-				
-				// Пускаме жироскопа
-				controls = new DeviceOrientationControls( VAX.camera );
-			}
+    // --- НАСТРОЙКИ НА КАМЕРАТА ---
+    VAX.camera.fov = 60;
+    VAX.camera.near = 0.1;
+    VAX.camera.far = 1000;
+    VAX.camera.position.set(0, 0, 0.1);
+    
+    // Важно от твоя файл: Сменяме реда на въртене, за да работи коректно
+    VAX.camera.rotation.order = 'YXZ'; 
+    VAX.camera.updateProjectionMatrix();
 
-			// --- СЪЗДАВАНЕ НА СЦЕНАТА ---
 
-			var texture = new THREE.CubeTextureLoader().load([
-						'BerzeliiPark/posx.jpg', 'BerzeliiPark/negx.jpg',
-						'BerzeliiPark/posy.jpg', 'BerzeliiPark/negy.jpg',
-						'BerzeliiPark/posz.jpg', 'BerzeliiPark/negz.jpg']);
-			
-			texture.mapping = THREE.CubeRefractionMapping; 
-			VAX.scene.background = texture;
-			VAX.scene.background.colorSpace = THREE.LinearSRGBColorSpace;
+    // --- ЛОГИКА ЗА ОРИЕНТАЦИЯ (Взета 1:1 от vax-0MI0800358-3.html) ---
+    
+    let deviceAlpha = 0, deviceGamma = 0;
+    let startAlpha = null, startGamma = null;
 
-			var crystals = []; 
-			var geometry = new THREE.IcosahedronGeometry(10, 0);
-			
-			var material = new THREE.MeshBasicMaterial({ 
-				envMap: texture,       
-				refractionRatio: 0.90,
-			});
+    function handleOrientation(event) {
+        if (event.alpha === null) return;
+        if (startAlpha === null) {
+            startAlpha = event.alpha;
+            startGamma = event.gamma;
+        }
+        // Изчисляваме разликата спрямо началната позиция
+        deviceAlpha = event.alpha - startAlpha;
+        deviceGamma = event.gamma - startGamma;
+    }
 
-			for(var i=0; i<40; i++) {
-				var mesh = new THREE.Mesh(geometry, material);
-				
-				var phi = Math.random() * Math.PI * 2;
-				var theta = Math.random() * Math.PI;
-				var r = 80 + Math.random() * 60; 
+    document.getElementById("enableMotion").addEventListener("click", async () => {
+        // Проверка за iOS 13+
+        if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+            try {
+                const response = await DeviceOrientationEvent.requestPermission();
+                if (response === "granted") {
+                    window.addEventListener("deviceorientation", handleOrientation, true);
+                    document.getElementById("enableMotion").style.display = "none";
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        } else {
+            // За Android и Chrome Simulator
+            window.addEventListener("deviceorientation", handleOrientation, true);
+            document.getElementById("enableMotion").style.display = "none";
+        }
+    });
 
-				mesh.position.x = r * Math.sin(theta) * Math.cos(phi);
-				mesh.position.y = r * Math.cos(theta);
-				mesh.position.z = r * Math.sin(theta) * Math.sin(phi);
 
-				mesh.rotation.x = Math.random() * Math.PI;
-				mesh.rotation.y = Math.random() * Math.PI;
+    // --- СЦЕНА (Кристали и Текстура) ---
 
-                mesh.userData = {
-                    rotSpeedX: (Math.random() - 0.5) * 0.02,
-                    rotSpeedY: (Math.random() - 0.5) * 0.02
-                };
+    // 1. Текстура
+    var texture = new THREE.CubeTextureLoader().load([
+        'BerzeliiPark/posx.jpg', 'BerzeliiPark/negx.jpg',
+        'BerzeliiPark/posy.jpg', 'BerzeliiPark/negy.jpg',
+        'BerzeliiPark/posz.jpg', 'BerzeliiPark/negz.jpg'
+    ]);
+    
+    texture.mapping = THREE.CubeRefractionMapping;
+    VAX.scene.background = texture;
+    VAX.scene.background.colorSpace = THREE.LinearSRGBColorSpace;
 
-				VAX.scene.add(mesh);
-				crystals.push(mesh);
-			}
+    // 2. Кристали
+    var crystals = [];
+    var geometry = new THREE.IcosahedronGeometry(10, 0); 
+    
+    var material = new THREE.MeshBasicMaterial({ 
+        envMap: texture,       
+        refractionRatio: 0.90,
+        side: THREE.DoubleSide
+    });
 
-			function animate()
-			{
-				// Въртене на кристалите
-				for(var i=0; i<crystals.length; i++) {
-					crystals[i].rotation.x += crystals[i].userData.rotSpeedX;
-					crystals[i].rotation.y += crystals[i].userData.rotSpeedY;
-				}
-				
-				// Обновяване на контролите (независимо дали са мишка или телефон)
-				controls.update();
-			}
-			
-		</script>	
-	</body>
+    for(var i=0; i<40; i++) {
+        var mesh = new THREE.Mesh(geometry, material);
+        
+        var phi = Math.random() * Math.PI * 2;
+        var theta = Math.random() * Math.PI;
+        var r = 80 + Math.random() * 60; 
+
+        mesh.position.x = r * Math.sin(theta) * Math.cos(phi);
+        mesh.position.y = r * Math.cos(theta);
+        mesh.position.z = r * Math.sin(theta) * Math.sin(phi);
+
+        mesh.rotation.x = Math.random() * Math.PI;
+        mesh.rotation.y = Math.random() * Math.PI;
+
+        mesh.userData = {
+            rotSpeedX: (Math.random() - 0.5) * 0.02,
+            rotSpeedY: (Math.random() - 0.5) * 0.02
+        };
+
+        VAX.scene.add(mesh);
+        crystals.push(mesh);
+    }
+
+
+    // --- ANIMATE ---
+    function animate() {
+        
+        // 1. Прилагаме въртенето от симулатора/телефона (Логика от твоя файл)
+        const rotY = THREE.MathUtils.degToRad(deviceAlpha);
+        // Знакът минус тук е важен за правилното движение нагоре/надолу
+        const rotX = THREE.MathUtils.degToRad(-deviceGamma); 
+
+        VAX.camera.rotation.y = rotY;
+        VAX.camera.rotation.x = rotX;
+
+
+        // 2. Въртим самите кристали
+        for(var i=0; i<crystals.length; i++) {
+            crystals[i].rotation.x += crystals[i].userData.rotSpeedX;
+            crystals[i].rotation.y += crystals[i].userData.rotSpeedY;
+        }
+    }
+</script>
+
+</body>
 </html>
