@@ -1,145 +1,161 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<head>
+		<title>E1113: Кристален свят (Mobile AR)</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		
+		<style>
+			/* Стилизиране на бутона за старт */
+			#startBtn {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				padding: 20px 40px;
+				font-size: 24px;
+				font-weight: bold;
+				color: white;
+				background: rgba(0, 0, 0, 0.7);
+				border: 2px solid white;
+				border-radius: 10px;
+				cursor: pointer;
+				z-index: 9999; /* Най-отгоре */
+			}
+			#startBtn:active {
+				background: white;
+				color: black;
+			}
+		</style>
 
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-            "vax": "https://boytchev.github.io/CourseVAX/lib/vax.js"
-        }
-    }
-    </script>
+		<script type="importmap">
+		  {
+			"imports": {
+			  "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+			  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+			  "vax": "https://boytchev.github.io/CourseVAX/lib/vax.js"
+			}
+		  }
+		</script>
+	</head>
+	
+	<body>
+		<button id="startBtn">СТАРТ AR</button>
 
-    <style>
-        body { margin: 0; overflow: hidden; }
-        #enableMotion {
-            position: absolute;
-            top: 20px; left: 20px; z-index: 10;
-            font-size: 18px; padding: 10px 16px;
-            background: rgba(255, 255, 255, 0.8);
-            border: 1px solid #ccc; border-radius: 8px; cursor: pointer;
-        }
-    </style>
-</head>
+		<script type="module">
+			import * as THREE from "three";
+			// Импортираме контролите за телефон
+			import { DeviceOrientationControls } from "three/addons/controls/DeviceOrientationControls.js";
+			import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+			import * as VAX from "vax";
 
-<body>
+			VAX.init(animate);
 
-<button id="enableMotion">Enable motion</button>
+			// Настройки на камерата
+			VAX.camera.fov = 60; 
+			VAX.camera.near = 0.1;
+			VAX.camera.far = 1000; 
+			VAX.camera.position.set(0, 0, 0.1);
+			VAX.camera.updateProjectionMatrix();
 
-<script type="module">
-    import * as THREE from "three";
-    import * as VAX from "vax";
-    import { StereoEffect } from "three/addons/effects/StereoEffect.js";
+			// Променлива за контролите (ще я сменяме динамично)
+			var controls;
 
-    let effect = null;
-    let isStereoRendering = false;
-    const currentSize = new THREE.Vector2();
+			// Първоначално пускаме OrbitControls (за тест на PC)
+			controls = new OrbitControls(VAX.camera, VAX.renderer.domElement);
+			controls.enableZoom = false;
+			controls.enablePan = false;
+			controls.enableDamping = true;
+			controls.dampingFactor = 0.1;
 
-    VAX.init(animate);
+			// --- ЛОГИКА ЗА БУТОНА И ТЕЛЕФОНА ---
+			var btn = document.getElementById('startBtn');
+			
+			btn.addEventListener('click', function() {
+				// Проверка дали е iOS 13+ (iPhone)
+				if ( typeof( DeviceOrientationEvent ) !== 'undefined' && typeof( DeviceOrientationEvent.requestPermission ) === 'function' ) {
+					
+					// Изискване на разрешение от Apple
+					DeviceOrientationEvent.requestPermission()
+						.then( response => {
+							if ( response == 'granted' ) {
+								enablePhoneControls();
+							} else {
+								alert("Трябва да разрешите достъпа до сензорите!");
+							}
+						})
+						.catch( console.error );
+				} else {
+					// За Android и други устройства, които не искат разрешение
+					enablePhoneControls();
+				}
+			});
 
-    VAX.scene.background = new THREE.Color(0x101010);
-    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
-    VAX.scene.add(ambient);
-    const pointLight = new THREE.PointLight(0xffffff, 1.5);
-    VAX.scene.add(pointLight);
+			function enablePhoneControls() {
+				// Скриваме бутона
+				btn.style.display = 'none';
+				
+				// Унищожаваме старите контроли (мишката)
+				controls.dispose();
+				
+				// Пускаме жироскопа
+				controls = new DeviceOrientationControls( VAX.camera );
+			}
 
-    VAX.camera.position.set(0, 0, 0);
+			// --- СЪЗДАВАНЕ НА СЦЕНАТА ---
 
-    let deviceAlpha = 0, deviceGamma = 0;
-    let startAlpha = null, startGamma = null;
+			var texture = new THREE.CubeTextureLoader().load([
+						'BerzeliiPark/posx.jpg', 'BerzeliiPark/negx.jpg',
+						'BerzeliiPark/posy.jpg', 'BerzeliiPark/negy.jpg',
+						'BerzeliiPark/posz.jpg', 'BerzeliiPark/negz.jpg']);
+			
+			texture.mapping = THREE.CubeRefractionMapping; 
+			VAX.scene.background = texture;
+			VAX.scene.background.colorSpace = THREE.LinearSRGBColorSpace;
 
-    function handleOrientation(event) {
-        if (event.alpha === null) return;
-        if (startAlpha === null) {
-            startAlpha = event.alpha;
-            startGamma = event.gamma;
-        }
-        deviceAlpha = event.alpha - startAlpha;
-        deviceGamma = event.gamma - startGamma;
-    }
+			var crystals = []; 
+			var geometry = new THREE.IcosahedronGeometry(10, 0);
+			
+			var material = new THREE.MeshBasicMaterial({ 
+				envMap: texture,       
+				refractionRatio: 0.90,
+			});
 
-    document.getElementById("enableMotion").addEventListener("click", async () => {
-        if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
-            try {
-                const response = await DeviceOrientationEvent.requestPermission();
-                if (response === "granted") {
-                    window.addEventListener("deviceorientation", handleOrientation, true);
-                    document.getElementById("enableMotion").style.display = "none";
-                }
-            } catch (e) {}
-        } else {
-            window.addEventListener("deviceorientation", handleOrientation, true);
-            document.getElementById("enableMotion").style.display = "none";
-        }
-    });
+			for(var i=0; i<40; i++) {
+				var mesh = new THREE.Mesh(geometry, material);
+				
+				var phi = Math.random() * Math.PI * 2;
+				var theta = Math.random() * Math.PI;
+				var r = 80 + Math.random() * 60; 
 
-    const size = 60;
-    const roomGeo = new THREE.BoxGeometry(size, size, size);
-    const roomMat = new THREE.MeshLambertMaterial({
-        color: 0x00ff00,
-        side: THREE.BackSide
-    });
-    const room = new THREE.Mesh(roomGeo, roomMat);
-    VAX.scene.add(room);
+				mesh.position.x = r * Math.sin(theta) * Math.cos(phi);
+				mesh.position.y = r * Math.cos(theta);
+				mesh.position.z = r * Math.sin(theta) * Math.sin(phi);
 
-    const coneGeo = new THREE.ConeGeometry(0.8, 3, 16);
-    const wallPos = size / 2 - 0.5;
+				mesh.rotation.x = Math.random() * Math.PI;
+				mesh.rotation.y = Math.random() * Math.PI;
 
-    function addWallCones(axis, sign) {
-        for (let i = 0; i < 40; i++) {
-            const mat = new THREE.MeshPhongMaterial({
-                color: new THREE.Color().setHSL(Math.random(), 0.8, 0.5)
-            });
-            const cone = new THREE.Mesh(coneGeo, mat);
+                mesh.userData = {
+                    rotSpeedX: (Math.random() - 0.5) * 0.02,
+                    rotSpeedY: (Math.random() - 0.5) * 0.02
+                };
 
-            const a = (Math.random() - 0.5) * (size - 10);
-            const b = (Math.random() - 0.5) * (size - 10);
+				VAX.scene.add(mesh);
+				crystals.push(mesh);
+			}
 
-            if (axis === 'x') cone.position.set(sign * wallPos, a, b);
-            if (axis === 'y') cone.position.set(a, sign * wallPos, b);
-            if (axis === 'z') cone.position.set(a, b, sign * wallPos);
-
-            VAX.scene.add(cone);
-        }
-    }
-
-    addWallCones('x', 1); addWallCones('x', -1);
-    addWallCones('y', 1); addWallCones('y', -1);
-    addWallCones('z', 1); addWallCones('z', -1);
-
-    const originalRender = VAX.renderer.render.bind(VAX.renderer);
-    VAX.renderer.render = function(scene, camera) {
-        if (isStereoRendering) originalRender(scene, camera);
-    };
-
-    function animate(t, dT) {
-        if (!effect && VAX.renderer) {
-            effect = new StereoEffect(VAX.renderer);
-            effect.setSize(window.innerWidth, window.innerHeight);
-            effect.eyeSeparation = 1;
-        }
-
-        VAX.camera.rotation.order = 'YXZ';
-        const rotY = THREE.MathUtils.degToRad(deviceAlpha);
-        const rotX = THREE.MathUtils.degToRad(-deviceGamma); 
-
-        VAX.camera.rotation.y = rotY;
-        VAX.camera.rotation.x = rotX;
-
-        if (effect) {
-            VAX.renderer.getSize(currentSize);
-            effect.setSize(currentSize.x, currentSize.y);
-            
-            isStereoRendering = true;
-            effect.render(VAX.scene, VAX.camera);
-            isStereoRendering = false;
-        }
-    }
-</script>
-
-</body>
+			function animate()
+			{
+				// Въртене на кристалите
+				for(var i=0; i<crystals.length; i++) {
+					crystals[i].rotation.x += crystals[i].userData.rotSpeedX;
+					crystals[i].rotation.y += crystals[i].userData.rotSpeedY;
+				}
+				
+				// Обновяване на контролите (независимо дали са мишка или телефон)
+				controls.update();
+			}
+			
+		</script>	
+	</body>
 </html>
